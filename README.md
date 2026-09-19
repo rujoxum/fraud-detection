@@ -21,30 +21,40 @@
 ## 🏗️ 實驗流程架構 (Pipeline Architecture)
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#F4F6F9', 'edgeLabelBackground':'#FFFFFF', 'primaryBorderColor': '#4B6B94', 'lineColor': '#5A738E'}}}%%
 flowchart TD
-    A["Raw Data (284,807 筆 / 31 特徵)"] -->|"遺失值清理 & 特徵分離"| B["分層抽樣 Stratified Sampling (維持 0.17% 詐欺比)"]
+    A["📂 原始交易數據集 (284,807 筆)"] -->|"分層抽樣 (維持 0.17% 詐欺比)"| B["⚙️ 不平衡處理策略"]
     
-    subgraph Imbalance["不平衡資料處理策略 (Imbalance Handling)"]
-        B --> C1["Logistic Regression: class_weight='balanced'"]
-        B --> C2["Random Forest: Balanced Sub-sample"]
-        B --> C3["XGBoost: scale_pos_weight = 585.35"]
-        B --> C4["Gaussian Naive Bayes: Priors 機率擬合"]
+    subgraph S1 ["✦ 不平衡權重調整"]
+        B --> C1["Logistic Regression (balanced)"]
+        B --> C2["Random Forest (balanced)"]
+        B --> C3["XGBoost (scale_pos_weight = 585.35)"]
+        B --> C4["GaussianNB (Priors 機率擬合)"]
     end
 
-    subgraph Models["多模型訓練 (Model Training)"]
-        C1 --> M1["線性基準: Logistic Regression"]
-        C2 --> M2["集成裝袋: Random Forest"]
-        C3 --> M3["梯度提升: XGBoost (Champion)"]
-        C4 --> M4["機率統計: Gaussian Naive Bayes"]
+    subgraph S2 ["✦ 模型訓練與推論"]
+        C1 --> M1["Logistic Regression"]
+        C2 --> M2["Random Forest"]
+        C3 --> M3["XGBoost (Champion)"]
+        C4 --> M4["Naive Bayes"]
     end
 
-    subgraph Evaluation["綜合評估與可解釋性 (Evaluation & XAI)"]
-        M1 & M2 & M3 & M4 --> E1["PR-AUC & ROC-AUC 曲線對比"]
-        M3 --> E2["Decision Threshold Tuning (最大化 F1)"]
-        M3 --> E3["混淆矩陣驗證 (Recall 93.3% / 0 誤報)"]
-        M3 --> E4["SHAP Summary Plot & Feature Importance"]
+    subgraph S3 ["✦ 綜合評估與可解釋性"]
+        M1 & M2 & M3 & M4 --> E1["PR-AUC / ROC 曲線"]
+        M3 --> E2["決策門檻調優 (F1 = 0.9333)"]
+        M3 --> E3["混淆矩陣驗證 (Recall 93.3%)"]
+        M3 --> E4["SHAP 決策歸因圖"]
     end
+
+    classDef default fill:#FFFFFF,stroke:#CAD5E2,stroke-width:1.2px,color:#2D3748,rx:8px,ry:8px;
+    classDef highlight fill:#EBF3FB,stroke:#3B82F6,stroke-width:1.8px,color:#1E3A8A,rx:8px,ry:8px;
+    classDef titleBox fill:#F8FAFC,stroke:#94A3B8,stroke-width:1.5px,stroke-dasharray: 3 3,color:#334155,rx:10px,ry:10px;
+
+    class M3 highlight;
+    class S1,S2,S3 titleBox;
 ```
+
+
 
 ---
 
@@ -74,19 +84,19 @@ flowchart TD
 ### 1. 類別分佈與混淆矩陣 (Class Distribution & Confusion Matrix)
 | 資料極度不平衡分佈 (0.17% 詐欺) | XGBoost 混淆矩陣 (最佳門檻 0.822) |
 | :---: | :---: |
-| <img src="./docs/images/01_class_distribution.png" width="400" alt="類別分佈圖" /> | <img src="./docs/images/02_confusion_matrix.png" width="400" alt="混淆矩陣" /> |
+| <img width="677" height="380" alt="HEIF影像" src="https://github.com/user-attachments/assets/1666c796-14a7-4e0f-a031-45ecaea47a09" />|<img width="690" height="442" alt="HEIF影像 2" src="https://github.com/user-attachments/assets/7bb8438a-d258-4258-acc1-de6115d1ee5c" />|
 | 正常交易佔 99.83%，詐欺交易僅佔 0.17% | 測試集 15 筆詐欺精準抓到 14 筆 (Recall 93.3%)，且 8,529 筆正常交易零誤報 |
 
 ### 2. 評估曲線比對 (ROC Curve vs. PR Curve)
 | ROC 曲線比較圖 | Precision-Recall (PR) 曲線比較圖 |
 | :---: | :---: |
-| <img src="./docs/images/03_roc_curve.png" width="400" alt="ROC曲線" /> | <img src="./docs/images/04_pr_curve.png" width="400" alt="PR曲線" /> |
+| <img width="543" height="397" alt="HEIF影像 4" src="https://github.com/user-attachments/assets/7683aec8-0ec0-46af-b782-70532903bdd2" /> |<img width="623" height="454" alt="HEIF影像 6" src="https://github.com/user-attachments/assets/639db500-284f-47de-85ac-86cc8451245a" />|
 | 各模型 ROC 表面皆高，但無法區分精準度差異 | **PR 曲線突顯 XGBoost 在高召回率下維持高 Precision 的表現** |
 
 ### 3. 模型決策歸因 (Feature Importance & SHAP)
 | XGBoost 特徵重要性 (Top 15) | SHAP Summary Plot 歸因分析 |
 | :---: | :---: |
-| <img src="./docs/images/05_feature_importance.png" width="400" alt="特徵重要性" /> | <img src="./docs/images/06_shap_summary.png" width="400" alt="SHAP摘要圖" /> |
+| <img width="587" height="355" alt="HEIF影像 3" src="https://github.com/user-attachments/assets/9ad10aa2-6789-48c0-8e18-d1ec58074ef9" /> | <img width="579" height="546" alt="HEIF影像 5" src="https://github.com/user-attachments/assets/60f983e6-90c4-4a7d-b7fb-f52d7f697f44" />|
 | **V10、V12 及 Amount (交易金額)** 為模型決策前三大關鍵因子 | 清楚顯示特徵值高低對預測方向之影響（如 V10 偏低時推動模型判定為詐欺） |
 
 ---
